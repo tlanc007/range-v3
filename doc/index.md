@@ -6,16 +6,21 @@ User Manual       {#mainpage}
 \section tutorial-preface Preface
 
 --------------------------------------------
-Range library for C++11/14/17. This code is the basis of [a formal proposal](https://ericniebler.github.io/std/wg21/D4128.html) to add range support to the C++ standard library.
+Range library for C++11/14/17. This code is the basis of [a formal proposal](https://ericniebler.github.io/std/wg21/D4128.html) to add range support to the
+C++ standard library.
 
 **Development Status:**
 
-This code is fairly stable, well-tested, and suitable for casual use, although currently lacking documentation. No promise is made about support or long-term stability. This code *will* evolve without regard to backwards compatibility.
+This code is fairly stable, well-tested, and suitable for casual use, although
+currently lacking documentation. No promise is made about support or long-term
+stability. This code *will* evolve without regard to backwards compatibility.
 
 \subsection tutorial-installation Installation
 
 --------------------------------------------
-This library is header-only. You can get the source code from the [range-v3 repository](https://github.com/ericniebler/range-v3) on github. To compile with Range-v3, you can either `#%include` the entire library:
+This library is header-only. You can get the source code from the
+[range-v3 repository](https://github.com/ericniebler/range-v3) on github. To
+compile with Range-v3, you can either `#%include` the entire library:
 
 ~~~~~~~{.cpp}
 #include <range/v3/all.hpp>
@@ -31,7 +36,10 @@ Or you can `#%include` only the core, and then the individual headers you want:
 \subsection tutorial-license License
 
 --------------------------------------------
-Most of the source code in this project are mine, and those are under the Boost Software License. Parts are taken from Alex Stepanov's Elements of Programming, Howard Hinnant's libc++, and from the SGI STL. Please see the attached LICENSE file and the CREDITS file for the licensing and acknowledgements.
+Most of the source code in this project are mine, and those are under the Boost
+Software License. Parts are taken from Alex Stepanov's Elements of Programming,
+Howard Hinnant's libc++, and from the SGI STL. Please see the attached LICENSE
+file and the CREDITS file for the licensing and acknowledgements.
 
 \subsection tutorial-compilers Supported Compilers
 
@@ -40,17 +48,22 @@ The code is known to work on the following compilers:
 
 - clang 3.6.2
 - GCC 4.9.1
+- MSVC VS2017 15.9 (`_MSC_VER >= 1916`), with `/std:c++17 /permissive-`
 
 \section tutorial-quick-start Quick Start
 
 --------------------------------------------
-Range v3 is a generic library that augments the existing standard library with facilities for working with *ranges*. A range can be loosely thought of a pair of iterators, although they need not be implemented that way. Bundling begin/end iterators into a single object brings several benefits.
+Range v3 is a generic library that augments the existing standard library with
+facilities for working with *ranges*. A range can be loosely thought of a pair
+of iterators, although they need not be implemented that way. Bundling begin/end
+iterators into a single object brings several benefits.
 
 ## Why Use Ranges?
 
 ### Convenience
 
-It's more convenient to pass a single range object to an algorithm than separate begin/end iterators. Compare:
+It's more convenient to pass a single range object to an algorithm than separate
+begin/end iterators. Compare:
 
 ~~~~~~~{.cpp}
     std::vector<int> v{/*...*/};
@@ -64,15 +77,22 @@ with
     ranges::sort( v );
 ~~~~~~~
 
-Range v3 contains a full implementation of all the standard algorithms with range-based overloads for convenience.
+Range v3 contains a full implementation of all the standard algorithms with
+range-based overloads for convenience.
 
 ### Composability
 
-Having a single range object permits *pipelines* of operations. In a pipeline, a range is lazily adapted or eagerly mutated in some way, with the result immediately available for further adaptation or mutation. Lazy adaption is handled by *views*, and eager mutation is handled by *actions*.
+Having a single range object permits *pipelines* of operations. In a pipeline, a
+range is lazily adapted or eagerly mutated in some way, with the result
+immediately available for further adaptation or mutation. Lazy adaption is
+handled by *views*, and eager mutation is handled by *actions*.
 
 #### Views
 
-A view is a lightweight wrapper that presents a view of an underlying sequence of elements in some custom way without mutating or copying it. Views are cheap to create and copy, and have non-owning reference semantics. Below are some examples:
+A view is a lightweight wrapper that presents a view of an underlying sequence
+of elements in some custom way without mutating or copying it. Views are cheap
+to create and copy, and have non-owning reference semantics. Below are some
+examples:
 
 Filter a container using a predicate and transform it.
 
@@ -84,7 +104,8 @@ Filter a container using a predicate and transform it.
     // rng == {"2","4","6","8","10"};
 ~~~~~~~
 
-Generate an infinite list of integers starting at 1, square them, take the first 10, and sum them:
+Generate an infinite list of integers starting at 1, square them, take the first
+10, and sum them:
 
 ~~~~~~~{.cpp}
     using namespace ranges;
@@ -93,7 +114,8 @@ Generate an infinite list of integers starting at 1, square them, take the first
                        | view::take(10), 0);
 ~~~~~~~
 
-Generate a sequence on the fly with a range comprehension and initialize a vector with it:
+Generate a sequence on the fly with a range comprehension and initialize a
+vector with it:
 
 ~~~~~~~{.cpp}
     using namespace ranges;
@@ -104,9 +126,26 @@ Generate a sequence on the fly with a range comprehension and initialize a vecto
     // vi == {1,2,2,3,3,3,4,4,4,4,5,5,5,5,5,...}
 ~~~~~~~
 
+### View constness
+
+Logically, a view is like a pair of iterators. In order to work, and work fast, many views need to cache some data.
+In order to keep iterators small, this cached data is usually stored in the view itself, and iterators hold only pointers to their view.
+Because of the cache, many views lack a `const`-qualified `begin()`/`end()`.
+When `const` versions of `begin()`/`end()` are provided, they are truly `const` (don't cache); that is, thread-safe.
+
+The `const`-ness of a view is not related to the `const`-ness of the underlying data. Non-`const` view may return `const` iterators. This is analogous to pointers; an `int* const` is a `const` pointer to a mutable `int`.
+
+Use non-`const` views whenever possible. If you need thread-safety, work with view copies in threads; don't share.
+
+### View validity
+
+Any operation on the underlying range that invalidates its iterators or sentinels will also invalidate any view that refers to any part of that range. Additionally, some views (_e.g._, `view::filter`), are invalidated when the underlying elements of the range are mutated. It is best to recreate a view after any operation that may have mutated the underlying range.
+
 #### Actions
 
-When you want to mutate a container in-place, or forward it through a chain of mutating operations, you can use actions. The following examples should make it clear.
+When you want to mutate a container in-place, or forward it through a chain of
+mutating operations, you can use actions. The following examples should make it
+clear.
 
 Read data into a vector, sort it, and make it unique.
 
@@ -136,21 +175,22 @@ Same as above, but with function-call syntax instead of pipe syntax:
 
 ## Create Custom Ranges
 
-Range v3 provides a utility for easily creating your own range types, called `view_facade`. The code below uses `view_facade` to create a range that traverses a null-terminated string:
+Range v3 provides a utility for easily creating your own range types, called
+\link ranges::v3::view_facade `ranges::view_facade`\endlink. The code below uses
+`view_facade` to create a range that traverses a null-terminated string:
 
 ~~~~~~~{.cpp}
     #include <range/v3/all.hpp>
-    using namespace ranges;
 
     // A range that iterates over all the characters in a
     // null-terminated string.
     class c_string_range
-      : public view_facade<c_string_range>
+      : public ranges::view_facade<c_string_range>
     {
-        friend range_access;
-        char const * sz_;
+        friend ranges::range_access;
+        char const * sz_ = "";
         char const & read() const { return *sz_; }
-        bool equal(default_sentinel) const { return *sz_ == '\0'; }
+        bool equal(ranges::default_sentinel) const { return *sz_ == '\0'; }
         void next() { ++sz_; }
     public:
         c_string_range() = default;
@@ -161,9 +201,14 @@ Range v3 provides a utility for easily creating your own range types, called `vi
     };
 ~~~~~~~
 
-The `view_facade` class generates an iterator and begin/end member functions from the minimal interface provided by `c_string_range`. This is an example of a very simple range for which it is not necessary to separate the range itself from the thing that iterates the range. Future examples will show examples of more sophisticated ranges.
+The `view_facade` class generates an iterator and begin/end member functions
+from the minimal interface provided by `c_string_range`. This is an example of a
+very simple range for which it is not necessary to separate the range itself
+from the thing that iterates the range. Future examples will show examples of
+more sophisticated ranges.
 
-With `c_string_range`, you can now use algorithms to operate on null-terminated strings, as below:
+With `c_string_range`, you can now use algorithms to operate on null-terminated
+strings, as below:
 
 ~~~~~~~{.cpp}
     #include <iostream>
@@ -181,25 +226,34 @@ With `c_string_range`, you can now use algorithms to operate on null-terminated 
 
 ## Adapting Ranges
 
-Often, a new range type is most easily expressed by adapting an existing range type. That's the case for many of the range views provided by the Range v3 library; for example, the `view::remove_if` and `view::transform` views. These are rich types with many moving parts, but thanks to a helper class called `view_adaptor`, they aren't hard to write.
+Often, a new range type is most easily expressed by adapting an existing range
+type. That's the case for many of the range views provided by the Range v3
+library; for example, the `view::remove_if` and `view::transform` views. These
+are rich types with many moving parts, but thanks to a helper class called
+\link ranges::v3::view_adaptor `ranges::view_adaptor`\endlink, they aren't hard
+to write.
 
-Below in roughly 2 dozen lines of code is the `transform` view, which takes one range and transforms all the elements with a unary function.
+Below in roughly 2 dozen lines of code is the `transform` view, which takes one
+range and transforms all the elements with a unary function.
 
 ~~~~~~~{.cpp}
+    #include <range/v3/all.hpp>
+
     // A class that adapts an existing range with a function
     template<class Rng, class Fun>
-    class transform_view : public view_adaptor<transform_view<Rng, Fun>, Rng>
+    class transform_view
+      : public ranges::view_adaptor<transform_view<Rng, Fun>, Rng>
     {
-        friend range_access;
-        semiregular_t<Fun> fun_; // Make Fun model SemiRegular if it doesn't
-        class adaptor : public adaptor_base
+        friend ranges::range_access;
+        ranges::semiregular_t<Fun> fun_; // Make Fun model SemiRegular if it doesn't
+        class adaptor : public ranges::adaptor_base
         {
-            semiregular_t<Fun> fun_;
+            ranges::semiregular_t<Fun> fun_;
         public:
             adaptor() = default;
-            adaptor(semiregular_t<Fun> const &fun) : fun_(fun) {}
+            adaptor(ranges::semiregular_t<Fun> const &fun) : fun_(fun) {}
             // Here is where we apply Fun to the elements:
-            auto read(iterator_t<Rng> it) const -> decltype(fun_(*it))
+            auto read(ranges::iterator_t<Rng> it) const -> decltype(fun_(*it))
             {
                 return fun_(*it);
             }
@@ -221,7 +275,14 @@ Below in roughly 2 dozen lines of code is the `transform` view, which takes one 
     }
 ~~~~~~~
 
-Range transformation is achieved by defining a nested `adaptor` class that handles the transformation, and then defining `begin_adaptor` and `end_adaptor` members that return adaptors for the begin iterator and the end sentinel, respectively. The `adaptor` class has a `read` member that performs the transformation. It is passed an iterator to the current element. Other members are available for customization: `equal`, `next`, `prev`, `advance`, and `distance_to`; but the transform adaptor accepts the defaults defined in `adaptor_base`.
+Range transformation is achieved by defining a nested `adaptor` class that
+handles the transformation, and then defining `begin_adaptor` and `end_adaptor`
+members that return adaptors for the begin iterator and the end sentinel,
+respectively. The `adaptor` class has a `read` member that performs the
+transformation. It is passed an iterator to the current element. Other members
+are available for customization: `equal`, `next`, `prev`, `advance`, and
+`distance_to`; but the transform adaptor accepts the defaults defined in
+\link ranges::v3::adaptor_base `ranges::adaptor_base`\endlink.
 
 With `transform_view`, we can print out the first 20 squares:
 
@@ -236,15 +297,169 @@ With `transform_view`, we can print out the first 20 squares:
     }
 ~~~~~~~
 
-The `transform_view` defined above is an InputRange when its wrapping an InputRange, a ForwardRange when its wrapping a ForwardRange, etc. That happens because of smart defaults defined in the `adaptor_base` class. That frees you from having to deal with a host of niggly detail when implementing iterators.
+The `transform_view` defined above is an InputRange when it's wrapping an
+InputRange, a ForwardRange when it's wrapping a ForwardRange, etc. That happens
+because of smart defaults defined in the `adaptor_base` class. That frees you
+from having to deal with a host of niggly detail when implementing iterators.
 
-*(Note: the above `transform_view` always stores a copy of the function in the sentinel. That is only necessary if the underlying range's sentinel type models BidirectionalIterator. That's a finer point that you shouldn't worry about right now.)*
+*(Note: the above `transform_view` always stores a copy of the function in the
+sentinel. That is only necessary if the underlying range's sentinel type models
+BidirectionalIterator. That's a finer point that you shouldn't worry about right
+now.)*
+
+## view_adaptor in details
+
+Each `view_adaptor` contains `base()` member in view and iterator.
+`base()` - allow to access "adapted" range/iterator:
+
+~~~~~~~{.cpp}
+    std::vector<int> vec;
+    auto list = vec | view::transfom([](int i){ return i+1; });
+
+    assert( vec.begin() == list.begin().base() );
+    assert( vec.begin() == list.base().begin() );
+~~~~~~~
+
+Like `basic_iterator`'s `cursor` - `view_adaptor`'s `adaptor` can contain mixin class too,
+to inject things into the public interface of the iterator:
+
+~~~~~~~{.cpp}
+    class adaptor : public ::ranges::adaptor_base
+    {
+        template<class base_mixin>
+        struct mixin : base_mixin
+        {
+              // everything inside this class will be accessible from iterator
+              using base_mixin::base_mixin;
+
+              decltype(auto) base_value() const
+              {
+                  return *this->base();
+              }
+
+              int get_i() const
+              {
+                  return this->get().i;
+              }
+        };
+
+        int i = 100;
+    };
+~~~~~~~
+
+## Create Custom Iterators
+
+Here is an example of Range v3 compatible RandomAccess proxy iterator.
+The iterator returns a key/value pair, like the `zip` view.
+
+~~~~~~~{.cpp}
+    #include <range/v3/utility/basic_iterator.hpp>
+    #include <range/v3/utility/common_tuple.hpp>
+
+    using KeyIter   = typename std::vector<Key>::iterator;
+    using ValueIter = typename std::vector<Value>::iterator;
+
+    struct cursor {
+
+        // basic_iterator derives from "mixin", if present, so it can be used
+        // to inject things into the public interface of the iterator
+        struct mixin;
+
+        // This is for dereference operator.      
+        using value_type = std::pair<Key, Value>; 
+        ranges::common_pair<Key&, Value&> read() const {
+            return { *key_iterator, *value_iterator };
+        }
+
+        bool equal(const cursor& other) const {
+            return key_iterator == other.key_iterator;
+        }
+
+        void next() { 
+            ++key_iterator;
+            ++value_iterator;
+        }
+
+        // prev optional. Required for Bidirectional iterator
+        void prev() { 
+            --key_iterator;
+            --value_iterator;
+        }
+
+        // advance and distance_to are optional. Required for RandomAcess iterator
+        void advance(std::ptrdiff_t n) { 
+            key_iterator   += n;
+            value_iterator += n;
+        }
+        std::ptrdiff_t distance_to(const cursor& other) const {
+            return other.key_iterator - this->key_iterator;
+        }
+
+        cursor() = default;
+        cursor(KeyIter key_iterator, ValueIter value_iterator)
+            : key_iterator(key_iterator)
+            , value_iterator(value_iterator)
+        {}
+
+        KeyIter   key_iterator;
+        ValueIter value_iterator;
+    };
+
+    struct cursor::mixin : ranges::basic_mixin<cursor>
+    {
+      using ranges::basic_mixin<cursor>::basic_mixin;
+
+      // It is necessary to expose constructor in this way
+      mixin(KeyIter key_iterator, ValueIter value_iterator)
+        : mixin{ cursor(key_iterator, value_iterator) }
+      {}
+
+      KeyIter key_iterator() {
+        return this->get().key_iterator;
+      }
+      ValueIter value_iterator() {
+        return this->get().value_iterator;
+      }
+    };    
+
+    using iterator = ranges::basic_iterator<cursor>;
+
+    void test(){
+      std::vector<Key>   keys   = {1};
+      std::vector<Value> values = {10};
+      
+      iterator iter(keys.begin(), values.begin());
+      ranges::common_pair<Key&, Value&> pair = *iter;
+      Key&   key   = pair.first;
+      Value& value = pair.second;
+
+      assert(&key   == &keys[0]);
+      assert(&value == &values[0]);      
+
+      auto key_iter = iter.key_iterator();
+      assert(key_iter == keys.begin());
+    }
+~~~~~~~
+
+`read()` returns references. So, we explicitly specify `value_type`.  
+ `ranges::common_pair` has conversions:  
+`ranges::common_pair<Key&, Value&>` <=> `ranges::common_pair<Key, Value>`.  
+All `ranges::common_pair`s converts to their `std::pair` equivalents, also.
+
+For more information, see [http://wg21.link/P0186#basic-iterators-iterators.basic](http://wg21.link/P0186#basic-iterators-iterators.basic)
+
 
 ## Constrain Functions with Concepts
 
-The Range v3 library makes heavy use of concepts to constrain functions, control overloading, and check type constraints at compile-time. It achieves this with the help of a Concepts Lite emulation layer that works on any standard-conforming C++11 compiler. The library provides many useful concepts, both for the core language and for iterators and ranges. You can use the concepts framework to constrain your own code.
+The Range v3 library makes heavy use of concepts to constrain functions, control
+overloading, and check type constraints at compile-time. It achieves this with
+the help of a Concepts Lite emulation layer that works on any
+standard-conforming C++11 compiler. The library provides many useful concepts,
+both for the core language and for iterators and ranges. You can use the
+concepts framework to constrain your own code.
 
-For instance, if you would like to write a function that takes an iterator/sentinel pair, you can write it like this:
+For instance, if you would like to write a function that takes an
+iterator/sentinel pair, you can write it like this:
 
 ~~~~~~~{.cpp}
     template<class Iter, class Sent, class Comp = /*...some_default..*/,
@@ -266,21 +481,36 @@ You can then add an overload that take a Range:
     }
 ~~~~~~~
 
-With the type constraints expressed with the `CONCEPTS_REQUIRES_` macro, these two overloads are guaranteed to not be ambiguous.
+With the type constraints expressed with the `CONCEPTS_REQUIRES_` macro, these
+two overloads are guaranteed to not be ambiguous.
 
 ## Range v3 and the Future
 
 Range v3 forms the basis for a proposal to add ranges to the standard library
-([N4128](www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4128.html)), and will also be the basis for a Technical Specification on Ranges. Its design direction has already passed an initial review by the standardization committee. What that means is that you may see your compiler vendor shipping a library like Range v3 at some point in the future. That's the hope, anyway.
+([N4128](http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n4128.html)),
+and is also be the basis for a Technical Specification on Ranges. The Technical
+Specification contains many of Range v3's concept definitions (translated into
+the actual syntax of C++20 Concepts) in addition to constrained versions of the
+STL algorithms overloaded both for iterator/sentinel pairs and for ranges. The
+Ranges TS has already been sent to ISO for publication.
 
-Enjoy!
+The views and actions, as well as various utilities, have not yet been reviewed
+by the committee, although the basic direction has already passed an initial
+review. A proposal to add a subset of the views to the Ranges TS is in the early
+stages.
 
 \section range-views Range Views
 
 --------------------------------------------
-The big advantage of ranges over iterators is their *composability*. They permit a functional style of programming where data is manipulated by passing it through a series of combinators. In addition, the combinators can be *lazy*, only doing work when the answer is requested, and *purely functional*, without mutating the original data. This makes it easier to reason about your code, especially when writing concurrent programs.
+The big advantage of ranges over iterators is their *composability*. They permit
+a functional style of programming where data is manipulated by passing it
+through a series of combinators. In addition, the combinators can be *lazy*,
+only doing work when the answer is requested, and *purely functional*, without
+mutating the original data. This makes it easier to reason about your code,
+especially when writing concurrent programs.
 
-Below is a list of the lazy range combinators, or *views*, that Range v3 provides, and a blurb about how each is intended to be used.
+Below is a list of the lazy range combinators, or *views*, that Range v3
+provides, and a blurb about how each is intended to be used.
 
 <DL>
 <DT>\link ranges::v3::view::adjacent_filter_fn `view::adjacent_filter`\endlink</DT>
@@ -317,6 +547,8 @@ Below is a list of the lazy range combinators, or *views*, that Range v3 provide
   <DD>Remove elements from the front of a range that satisfy a unary predicate.</DD>
 <DT>\link ranges::v3::view::empty() `view::empty`\endlink</DT>
   <DD>Create an empty range with a given value type.</DD>
+<DT>\link ranges::v3::view::enumerate() `view::enumerate`\endlink</DT>
+  <DD>Pair each element of a range with its index.</DD>
 <DT>\link ranges::v3::view::filter_fn `view::filter`\endlink</DT>
   <DD>Given a source range and a unary predicate, filter the elements that satisfy the predicate. (For users of Boost.Range, this is like the `filter` adaptor.)</DD>
 <DT>\link ranges::v3::view::for_each_fn `view::for_each`\endlink</DT>
@@ -329,6 +561,8 @@ Below is a list of the lazy range combinators, or *views*, that Range v3 provide
   <DD>Given a source range and a binary predicate, return a range of ranges where each range contains contiguous elements from the source range such that the following condition holds: for each element in the range apart from the first, when that element and the first element are passed to the binary predicate, the result is true. In essence, `view::group_by` *groups* contiguous elements together with a binary predicate.</DD>
 <DT>\link ranges::v3::view::indirect_fn `view::indirect`\endlink</DT>
   <DD>Given a source range of readable values (e.g. pointers or iterators), return a new view that is the result of dereferencing each.</DD>
+<DT>\link ranges::v3::view::addressof_fn `view::addressof`\endlink</DT>
+  <DD>Given a source range of lvalue references, return a new view that is the result of taking std::addressof of each.</DD>
 <DT>\link ranges::v3::view::intersperse_fn `view::intersperse`\endlink</DT>
   <DD>Given a source range and a value, return a new range where the value is inserted between contiguous elements from the source.</DD>
 <DT>\link ranges::v3::view::ints_fn `view::ints`\endlink</DT>
@@ -347,6 +581,8 @@ Below is a list of the lazy range combinators, or *views*, that Range v3 provide
   <DD>Given a range and a binary function, return a new range where the *N*<SUP>th</SUP> element is the result of applying the function to the *N*<SUP>th</SUP> element from the source range and the (N-1)th element from the result range.</DD>
 <DT>\link ranges::v3::view::remove_if_fn `view::remove_if`\endlink</DT>
   <DD>Given a source range and a unary predicate, filter out those elements that do not satisfy the predicate. (For users of Boost.Range, this is like the `filter` adaptor with the predicate negated.)</DD>
+<DT>\link ranges::v3::view::remove_fn `view::remove`\endlink</DT>
+  <DD>Given a source range and a value, filter out those elements that do not equal value.</DD>
 <DT>\link ranges::v3::view::repeat_fn `view::repeat`\endlink</DT>
   <DD>Given a value, create a range that is that value repeated infinitely.</DD>
 <DT>\link ranges::v3::view::repeat_n_fn `view::repeat_n`\endlink</DT>
@@ -416,6 +652,10 @@ Below is a list of the eager range combinators, or *actions*, that Range v3 prov
   <DD>Appends elements before the head of the source.</DD>
 <DT>\link ranges::v3::action::remove_if_fn `action::remove_if`\endlink</DT>
   <DD>Removes all elements from the source that satisfy the predicate.</DD>
+<DT>\link ranges::v3::action::remove_fn `action::remove`\endlink</DT>
+  <DD>Removes all elements from the source that are equal to value.</DD>
+<DT>\link ranges::v3::action::unstable_remove_if_fn `action::unstable_remove_if`\endlink</DT>
+  <DD>Much faster (each element remove has constant time complexity), unordered version of `remove_if`. Requires bidirectional container.</DD>
 <DT>\link ranges::v3::action::shuffle_fn `action::shuffle`\endlink</DT>
   <DD>Shuffles the source range.</DD>
 <DT>\link ranges::v3::action::slice_fn `action::slice`\endlink</DT>
@@ -437,3 +677,37 @@ Below is a list of the eager range combinators, or *actions*, that Range v3 prov
 <DT>`action::unique`</DT>
   <DD>Removes adjacent elements of the source that compare equal. If the source is sorted, removes all duplicate elements.</DD>
 </DL>
+
+\section example-section Examples
+
+\subsection example-hello hello ranges
+
+\snippet hello.cpp hello
+
+\subsection example-any-all-none any_of, all_of, none_of
+
+\snippet any_all_none_of.cpp any_all_none_of
+
+\subsection example-count count
+
+\snippet count.cpp count
+
+\subsection example-count_if count_if
+
+\snippet count_if.cpp count_if
+
+\subsection example-find find, find_if, find_if_not on sequence containers
+
+\snippet find.cpp find
+
+\subsection example-for_each-seq for_each on sequence containers
+
+\snippet for_each_sequence.cpp for_each_sequence
+
+\subsection example-for_each-assoc for_each on associative containers
+
+\snippet for_each_assoc.cpp for_each_assoc
+
+\subsection example-is_sorted is_sorted
+
+\snippet is_sorted.cpp is_sorted

@@ -1,6 +1,6 @@
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -55,8 +55,6 @@ namespace test {
 
         value_type elems_[N > 0 ? N : 1];
 
-        // No explicit construct/copy/destroy for aggregate type
-        RANGES_CXX14_CONSTEXPR array() = default;
         RANGES_CXX14_CONSTEXPR void fill(const value_type& u)
         {
             ranges::fill_n(elems_, N, u);
@@ -280,7 +278,6 @@ namespace test {
 }  // namespace test
 
 RANGES_DIAGNOSTIC_PUSH
-RANGES_DIAGNOSTIC_IGNORE_PRAGMAS
 RANGES_DIAGNOSTIC_IGNORE_MISMATCHED_TAGS
 
 namespace std

@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -48,7 +48,6 @@
 #include <range/v3/utility/iterator_concepts.hpp>
 #include <range/v3/utility/iterator_traits.hpp>
 #include <range/v3/utility/functional.hpp>
-#include <range/v3/utility/counted_iterator.hpp>
 #include <range/v3/algorithm/merge.hpp>
 #include <range/v3/algorithm/min.hpp>
 #include <range/v3/algorithm/sort.hpp>
@@ -162,7 +161,7 @@ namespace ranges
                 using D = difference_type_t<I>;
                 using V = value_type_t<I>;
                 D len = end - begin;
-                auto buf = len > 256 ? std::get_temporary_buffer<V>(len) : detail::value_init{};
+                auto buf = len > 256 ? detail::get_temporary_buffer<V>(len) : detail::value_init{};
                 std::unique_ptr<V, detail::return_temporary_buffer> h{buf.first};
                 if(buf.first == nullptr)
                     stable_sort_fn::inplace_stable_sort(begin, end, pred, proj);

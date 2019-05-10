@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -14,6 +14,7 @@
 #ifndef RANGES_V3_ACTION_HPP
 #define RANGES_V3_ACTION_HPP
 
+#include <range/v3/action/adjacent_remove_if.hpp>
 #include <range/v3/action/concepts.hpp>
 #include <range/v3/action/drop.hpp>
 #include <range/v3/action/drop_while.hpp>

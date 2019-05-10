@@ -1,6 +1,6 @@
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -39,6 +39,12 @@ int main()
     {
         int const some_ints[] = {1,2,3,0,4,5,6};
         auto rng = debug_input_view<const int>{some_ints} | view::delimit(0);
+        ::check_equal(rng, {1,2,3});
+    }
+
+    {
+        int const some_ints[] = {1,2,3};
+        auto rng = view::delimit(some_ints, 0);
         ::check_equal(rng, {1,2,3});
     }
 

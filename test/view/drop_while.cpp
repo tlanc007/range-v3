@@ -1,6 +1,6 @@
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -17,6 +17,16 @@
 #include <range/v3/utility/copy.hpp>
 #include "../simple_test.hpp"
 #include "../test_utils.hpp"
+
+struct my_data
+{
+    int i;
+};
+
+bool operator==(my_data left, my_data right)
+{
+    return left.i == right.i;
+}
 
 int main()
 {
@@ -57,6 +67,13 @@ int main()
         CONCEPT_ASSERT(!BoundedRange<R>());
         CONCEPT_ASSERT(Same<int const&, range_reference_t<R>>());
         ::check_equal(rng, {4,5,6,7,8,9});
+    }
+
+    {
+        // with projection
+        const std::list<my_data> data_list{{1}, {2}, {3}, {1}};
+        auto rng = data_list | view::drop_while([](int i){ return i <= 2; }, &my_data::i);
+        ::check_equal(rng, std::list<my_data>{{3}, {1}});
     }
 
     return test_result();

@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -51,6 +51,8 @@ namespace ranges
             struct adaptor : adaptor_base
             {
             private:
+                friend struct adaptor<!IsConst>;
+                using CRng = meta::const_if_c<IsConst, Rng>;
                 using partial_sum_view_t = meta::const_if_c<IsConst, partial_sum_view>;
                 semiregular_t<range_value_type_t<Rng>> sum_;
                 partial_sum_view_t *rng_;
@@ -60,7 +62,13 @@ namespace ranges
                 adaptor(partial_sum_view_t &rng)
                   : rng_(&rng)
                 {}
-                iterator_t<Rng> begin(partial_sum_view_t &)
+                template<bool Other,
+                    CONCEPT_REQUIRES_(IsConst && !Other)>
+                constexpr adaptor(adaptor<Other> that)
+                  : sum_(std::move(that.sum_))
+                  , rng_(that.rng_)
+                {}
+                iterator_t<CRng> begin(partial_sum_view_t &)
                 {
                     auto &base = rng_->base();
                     auto it = ranges::begin(base);
@@ -68,11 +76,11 @@ namespace ranges
                         sum_ = *it;
                     return it;
                 }
-                range_value_type_t<Rng> read(iterator_t<Rng>) const
+                range_value_type_t<Rng> read(iterator_t<CRng>) const
                 {
                     return sum_;
                 }
-                void next(iterator_t<Rng> &it)
+                void next(iterator_t<CRng> &it)
                 {
                     if (++it != ranges::end(rng_->base()))
                     {
@@ -91,16 +99,18 @@ namespace ranges
             {
                 return {*this};
             }
-            CONCEPT_REQUIRES(Range<Rng const>() &&
-                Invocable<Fun const&, range_common_reference_t<Rng>,
-                    range_common_reference_t<Rng>>())
+            template<typename CRng = Rng const,
+                CONCEPT_REQUIRES_(Range<CRng>() &&
+                    Invocable<Fun const&, range_common_reference_t<CRng>,
+                        range_common_reference_t<CRng>>())>
             adaptor<true> begin_adaptor() const
             {
                 return {*this};
             }
-            CONCEPT_REQUIRES(Range<Rng const>() &&
-                Invocable<Fun const&, range_common_reference_t<Rng>,
-                    range_common_reference_t<Rng>>())
+            template<typename CRng = Rng const,
+                CONCEPT_REQUIRES_(Range<CRng>() &&
+                Invocable<Fun const&, range_common_reference_t<CRng>,
+                    range_common_reference_t<CRng>>())>
             meta::if_<use_sentinel_t, adaptor_base, adaptor<true>> end_adaptor() const
             {
                 return {*this};
@@ -124,12 +134,20 @@ namespace ranges
             {
             private:
                 friend view_access;
-                template<typename Fun = plus>
-                static auto bind(partial_sum_fn partial_sum, Fun fun = {})
+                template<typename Fun>
+                static auto bind(partial_sum_fn partial_sum, Fun fun)
                 RANGES_DECLTYPE_AUTO_RETURN
                 (
                     make_pipeable(std::bind(partial_sum, std::placeholders::_1,
                         protect(std::move(fun))))
+                )
+                template<typename Fun = plus>
+                RANGES_DEPRECATED("Use \"ranges::view::partial_sum\" instead of \"ranges::view::partial_sum()\".")
+                static auto bind(partial_sum_fn partial_sum)
+                RANGES_DECLTYPE_AUTO_RETURN
+                (
+                    make_pipeable(std::bind(partial_sum, std::placeholders::_1,
+                        Fun{}))
                 )
             public:
                 template<typename Rng, typename Fun>
@@ -137,20 +155,21 @@ namespace ranges
                     InputRange<Rng>,
                     IndirectInvocable<Fun, iterator_t<Rng>, iterator_t<Rng>>,
                     ConvertibleTo<
-                        result_of_t<Fun&(range_common_reference_t<Rng> &&,
-                            range_common_reference_t<Rng> &&)>,
+                        invoke_result_t<Fun &, range_common_reference_t<Rng>,
+                            range_common_reference_t<Rng>>,
                         range_value_type_t<Rng>>>;
 
-                template<typename Rng, typename Fun,
+                template<typename Rng, typename Fun = plus,
                     CONCEPT_REQUIRES_(Concept<Rng, Fun>())>
-                partial_sum_view<all_t<Rng>, Fun> operator()(Rng && rng, Fun fun) const
+                partial_sum_view<all_t<Rng>, Fun> operator()(Rng && rng, Fun fun = {}) const
                 {
                     return {all(static_cast<Rng&&>(rng)), std::move(fun)};
                 }
+
             #ifndef RANGES_DOXYGEN_INVOKED
-                template<typename Rng, typename Fun,
+                template<typename Rng, typename Fun = plus,
                     CONCEPT_REQUIRES_(!Concept<Rng, Fun>())>
-                void operator()(Rng &&, Fun) const
+                void operator()(Rng &&, Fun = {}) const
                 {
                     CONCEPT_ASSERT_MSG(InputRange<Rng>(),
                         "The first argument passed to view::partial_sum must be a model of the "
@@ -160,8 +179,8 @@ namespace ranges
                         "The second argument passed to view::partial_sum must be callable with "
                         "two values from the range passed as the first argument.");
                     CONCEPT_ASSERT_MSG(ConvertibleTo<
-                        result_of_t<Fun&(range_common_reference_t<Rng> &&,
-                            range_common_reference_t<Rng> &&)>,
+                        invoke_result_t<Fun &, range_common_reference_t<Rng>,
+                            range_common_reference_t<Rng>>,
                         range_value_type_t<Rng>>(),
                         "The return type of the function passed to view::partial_sum must be "
                         "convertible to the value type of the range.");

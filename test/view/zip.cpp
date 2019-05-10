@@ -1,6 +1,6 @@
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -9,13 +9,14 @@
 //
 // Project home: https://github.com/ericniebler/range-v3
 
+#include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
-#include <memory>
 #include <range/v3/core.hpp>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/algorithm/move.hpp>
+#include <range/v3/utility/copy.hpp>
 #include <range/v3/utility/iterator.hpp>
 #include <range/v3/view/bounded.hpp>
 #include <range/v3/view/for_each.hpp>
@@ -26,7 +27,6 @@
 #include <range/v3/view/take_while.hpp>
 #include <range/v3/view/zip.hpp>
 #include <range/v3/view/zip_with.hpp>
-#include <range/v3/utility/copy.hpp>
 #include "../simple_test.hpp"
 #include "../test_utils.hpp"
 
@@ -97,17 +97,6 @@ int main()
     CHECK((rnd_rng.end() - rnd_rng.begin()) == 4);
     CHECK((rnd_rng.begin() - rnd_rng.end()) == -4);
     CHECK(rnd_rng.size() == 4u);
-
-    // zip_with
-    {
-        std::vector<std::string> v0{"a","b","c"};
-        std::vector<std::string> v1{"x","y","z"};
-
-        auto rng = view::zip_with(std::plus<std::string>{}, v0, v1);
-        std::vector<std::string> expected;
-        copy(rng, ranges::back_inserter(expected));
-        ::check_equal(expected, {"ax","by","cz"});
-    }
 
     // zip_with
     {
@@ -233,6 +222,17 @@ int main()
         );
         using P = std::pair<int, int>;
         ::check_equal(rng, {P{0,4},P{1,5}, P{2,6}, P{3,7}});
+    }
+
+    {
+        // Test with no ranges
+        auto rng = view::zip();
+        using R = decltype(rng);
+        CONCEPT_ASSERT(Same<range_value_type_t<R>, std::tuple<>>());
+        CONCEPT_ASSERT(ContiguousRange<R>());
+        static_assert(ranges::range_cardinality<R>::value == ranges::cardinality(0), "");
+        CHECK(ranges::begin(rng) == ranges::end(rng));
+        CHECK(ranges::size(rng) == 0u);
     }
 
     return test_result();

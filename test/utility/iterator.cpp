@@ -10,7 +10,9 @@
 //
 // Project home: https://github.com/ericniebler/range-v3
 
+#include <list>
 #include <ostream>
+#include <sstream>
 #include <string>
 #include <vector>
 #include <meta/meta.hpp>
@@ -36,6 +38,17 @@ void test_insert_iterator()
     std::vector<int> vi{5,6,7,8};
     copy({1,2,3,4}, inserter(vi, vi.begin()+2));
     ::check_equal(vi, {5,6,1,2,3,4,7,8});
+}
+
+void test_ostream_joiner()
+{
+    std::ostringstream oss;
+    std::vector<int> vi{};
+    copy(vi, make_ostream_joiner(oss, ","));
+    ::check_equal(oss.str(), std::string{""});
+    vi = {1,2,3,4};
+    copy(vi, make_ostream_joiner(oss, ","));
+    ::check_equal(oss.str(), std::string{"1,2,3,4"});
 }
 
 void test_move_iterator()
@@ -157,11 +170,38 @@ CONCEPT_ASSERT(IndirectlyMovable<int const *, int *>());
 CONCEPT_ASSERT(!IndirectlySwappable<int const *, int const *>());
 CONCEPT_ASSERT(!IndirectlyMovable<int const *, int const *>());
 
+namespace Boost
+{
+    struct S {}; // just to have a type from Boost namespace
+    template<typename I, typename D>
+    void advance(I&, D)
+    {}
+}
+
+// Regression test for https://github.com/ericniebler/range-v3/issues/845
+void test_845()
+{
+    std::list<std::pair<Boost::S, int>> v = { {Boost::S{}, 0} };
+    auto itr = v.begin();
+    ranges::advance(itr, 1); // Should not create ambiguity
+}
+
+// Test for https://github.com/ericniebler/range-v3/issues/1110
+void test_1110()
+{
+    // this should not trigger assertation error
+    std::vector<int> v = {1,2,3};
+    auto e = ranges::end(v);
+    ranges::advance(e, 0, ranges::begin(v));
+}
+
 int main()
 {
     test_insert_iterator();
     test_move_iterator();
+    test_ostream_joiner();
     issue_420_regression();
+    test_1110();
 
     {
         struct S { using value_type = int; };

@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2014
+//  Copyright Eric Niebler 2014-present
 //
 //  Use, modification and distribution is subject to the
 //  Boost Software License, Version 1.0. (See accompanying
@@ -186,7 +186,7 @@ namespace ranges
                 return accumulate(view::transform(outer_, ranges::size), size_type{0}) +
                         (range_cardinality<Rng>::value == 0 ?
                             0 :
-                            ranges::size(val_) * (range_cardinality<Rng>::value - 1));;
+                            ranges::size(val_) * (range_cardinality<Rng>::value - 1));
             }
         private:
             friend range_access;

@@ -1,7 +1,7 @@
 /// \file
 // Range v3 library
 //
-//  Copyright Eric Niebler 2013-2014
+//  Copyright Eric Niebler 2013-present
 //  Copyright Casey Carter 2016
 //
 //  Use, modification and distribution is subject to the
@@ -15,7 +15,6 @@
 #ifndef RANGES_V3_UTILITY_BOX_HPP
 #define RANGES_V3_UTILITY_BOX_HPP
 
-#include <atomic>
 #include <utility>
 #include <cstdlib>
 #include <type_traits>
@@ -56,49 +55,6 @@ namespace ranges
                 return *this;
             }
             constexpr operator T &() const &
-            {
-                return value;
-            }
-        };
-
-        template<typename T>
-        struct mutable_<std::atomic<T>>
-        {
-            mutable std::atomic<T> value;
-            mutable_() = default;
-            mutable_(mutable_ const &that)
-              : value(static_cast<T>(that.value))
-            {}
-            constexpr explicit mutable_(T &&t)
-              : value(detail::move(t))
-            {}
-            constexpr explicit mutable_(T const &t)
-              : value(t)
-            {}
-            mutable_ const &operator=(mutable_ const &that) const
-            {
-                value = static_cast<T>(that.value);
-                return *this;
-            }
-            mutable_ const &operator=(T &&t) const
-            {
-                value = std::move(t);
-                return *this;
-            }
-            mutable_ const &operator=(T const &t) const
-            {
-                value = t;
-                return *this;
-            }
-            operator T() const
-            {
-                return value;
-            }
-            T exchange(T desired)
-            {
-                return value.exchange(desired);
-            }
-            operator std::atomic<T> &() const &
             {
                 return value;
             }
@@ -168,11 +124,11 @@ namespace ranges
             {
                 return box_compress::ebo;
             }
-#ifndef _MSC_VER
+#ifndef RANGES_WORKAROUND_MSVC_249830
             // MSVC pukes passing non-constant-expression objects to constexpr
             // functions, so do not coalesce.
             template<typename T, typename = meta::if_<
-                meta::strict_and<std::is_empty<T>, std::is_trivial<T>, std::is_default_constructible<T>>>>
+                meta::strict_and<std::is_empty<T>, std::is_trivial<T>>>>
             constexpr box_compress box_compression_(int)
             {
                 return box_compress::coalesce;
@@ -186,7 +142,8 @@ namespace ranges
         }
         /// \endcond
 
-        template<typename Element, typename Tag = void, detail::box_compress = detail::box_compression<Element>()>
+        template<typename Element, typename Tag = void,
+            detail::box_compress = detail::box_compression<Element>()>
         class box
         {
             Element value;
@@ -197,13 +154,15 @@ namespace ranges
               : value{}
             {}
             template<typename E,
-                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value && std::is_convertible<E, Element>::value)>
+                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value &&
+                    detail::is_convertible<E, Element>::value)>
             constexpr box(E && e)
                 noexcept(std::is_nothrow_constructible<Element, E>::value)
               : value(static_cast<E&&>(e))
             {}
             template<typename E,
-                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value && !std::is_convertible<E, Element>::value)>
+                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value &&
+                    !detail::is_convertible<E, Element>::value)>
             constexpr explicit box(E && e)
                 noexcept(std::is_nothrow_constructible<Element, E>::value)
               : value(static_cast<E&&>(e))
@@ -234,13 +193,15 @@ namespace ranges
               : Element{}
             {}
             template<typename E,
-                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value && std::is_convertible<E, Element>::value)>
+                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value &&
+                    detail::is_convertible<E, Element>::value)>
             constexpr box(E && e)
                 noexcept(std::is_nothrow_constructible<Element, E>::value)
               : Element(static_cast<E&&>(e))
             {}
             template<typename E,
-                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value && !std::is_convertible<E, Element>::value)>
+                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value &&
+                    !detail::is_convertible<E, Element>::value)>
             constexpr explicit box(E && e)
                 noexcept(std::is_nothrow_constructible<Element, E>::value)
               : Element(static_cast<E&&>(e))
@@ -265,14 +226,15 @@ namespace ranges
         {
             static Element value;
         public:
-            constexpr box() noexcept
-            {}
+            constexpr box() noexcept = default;
             template<typename E,
-                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value && std::is_convertible<E, Element>::value)>
+                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value &&
+                    detail::is_convertible<E, Element>::value)>
             constexpr box(E &&) noexcept
             {}
             template<typename E,
-                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value && !std::is_convertible<E, Element>::value)>
+                CONCEPT_REQUIRES_(std::is_constructible<Element, E>::value &&
+                    !detail::is_convertible<E, Element>::value)>
             constexpr explicit box(E &&) noexcept
             {}
 
@@ -291,7 +253,7 @@ namespace ranges
         };
 
         template<typename Element, typename Tag>
-        Element box<Element, Tag, detail::box_compress::coalesce>::value;
+        Element box<Element, Tag, detail::box_compress::coalesce>::value{};
 
         // Get by tag type
         template<typename Tag, typename Element, detail::box_compress BC>
